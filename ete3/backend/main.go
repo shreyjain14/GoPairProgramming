@@ -3,17 +3,34 @@ package main
 import (
 	"ete3/internal/database"
 	"ete3/internal/handlers"
+	"fmt"
 	"log"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	fmt.Println("Starting cinema booking application...")
+
 	// Initialize database
+	fmt.Println("Initializing database...")
 	database.InitDB()
+	fmt.Println("Database initialized successfully")
 
 	// Create Gin router
+	fmt.Println("Setting up Gin router...")
 	r := gin.Default()
+
+	// Configure CORS middleware
+	fmt.Println("Configuring CORS to allow all origins...")
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           86400, // 24 hours
+	}))
 
 	// Serve static files from docs directory
 	r.Static("/docs", "./docs")
@@ -46,7 +63,8 @@ func main() {
 	}
 
 	// Start server
+	fmt.Println("Starting server on port 8080...")
 	if err := r.Run(":8080"); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to start server: ", err)
 	}
 }

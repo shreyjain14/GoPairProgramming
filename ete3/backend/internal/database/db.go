@@ -280,9 +280,17 @@ func CancelBooking(bookingID int64) error {
 	return nil
 }
 
-// CreateMovie adds a new movie to the database
+// CreateMovie adds a new movie to the database and creates shows with seats
 func CreateMovie(movie *models.Movie) error {
-	result, err := DB.Exec(`
+	// Start transaction
+	tx, err := DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Insert movie
+	result, err := tx.Exec(`
 		INSERT INTO movies (title, description, duration, genre, poster_url)
 		VALUES (?, ?, ?, ?, ?)`,
 		movie.Title, movie.Description, movie.Duration, movie.Genre, movie.PosterURL)
@@ -291,12 +299,81 @@ func CreateMovie(movie *models.Movie) error {
 		return err
 	}
 
-	id, err := result.LastInsertId()
+	movieID, err := result.LastInsertId()
 	if err != nil {
 		return err
 	}
+	movie.ID = movieID
 
-	movie.ID = id
+	// Create a theater if none exists
+	var theaterID int64
+	err = tx.QueryRow("SELECT id FROM theaters LIMIT 1").Scan(&theaterID)
+	if err != nil {
+		// Create a theater if none exists
+		res, err := tx.Exec(`
+			INSERT INTO theaters (name, capacity)
+			VALUES (?, ?)`,
+			"Main Theater", 140)
+		if err != nil {
+			return err
+		}
+		theaterID, err = res.LastInsertId()
+		if err != nil {
+			return err
+		}
+
+		// Create seats for the theater (A1-A20 to G1-G20)
+		for row := 0; row < 7; row++ {
+			for seat := 1; seat <= 20; seat++ {
+				_, err = tx.Exec(`
+					INSERT INTO seats (theater_id, row_number, seat_number)
+					VALUES (?, ?, ?)`,
+					theaterID, row+1, seat)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Create shows for the next 7 days at 6pm, 8pm, and 10pm
+	for day := 0; day < 7; day++ {
+		// 6:00 PM show
+		_, err = tx.Exec(`
+			INSERT INTO shows (movie_id, theater_id, start_time, end_time, price)
+			VALUES (?, ?, datetime('now', '+' || ? || ' days', '18:00:00'), 
+				datetime('now', '+' || ? || ' days', '18:00:00', '+' || ? || ' minutes'), ?)`,
+			movieID, theaterID, day, day, movie.Duration, 10.00)
+		if err != nil {
+			return err
+		}
+
+		// 8:00 PM show
+		_, err = tx.Exec(`
+			INSERT INTO shows (movie_id, theater_id, start_time, end_time, price)
+			VALUES (?, ?, datetime('now', '+' || ? || ' days', '20:00:00'), 
+				datetime('now', '+' || ? || ' days', '20:00:00', '+' || ? || ' minutes'), ?)`,
+			movieID, theaterID, day, day, movie.Duration, 12.00)
+		if err != nil {
+			return err
+		}
+
+		// 10:00 PM show
+		_, err = tx.Exec(`
+			INSERT INTO shows (movie_id, theater_id, start_time, end_time, price)
+			VALUES (?, ?, datetime('now', '+' || ? || ' days', '22:00:00'), 
+				datetime('now', '+' || ? || ' days', '22:00:00', '+' || ? || ' minutes'), ?)`,
+			movieID, theaterID, day, day, movie.Duration, 8.00)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Commit transaction
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
