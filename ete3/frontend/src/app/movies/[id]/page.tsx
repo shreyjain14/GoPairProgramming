@@ -249,7 +249,7 @@ export default function MovieDetails({ params }: { params: { id: string } }) {
       {/* Booking result message */}
       {bookingResult && (
         <div className="mt-4 p-4 bg-green-100 text-green-800 rounded text-center">
-          Booking successful! Your booking ID is {bookingResult.booking_id}.
+          Booking successful!.
           Redirecting to your bookings...
         </div>
       )}
