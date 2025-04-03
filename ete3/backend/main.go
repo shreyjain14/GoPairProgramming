@@ -22,11 +22,26 @@ func main() {
 	// API routes
 	api := r.Group("/api")
 	{
-		// Auth routes
-		auth := api.Group("/auth")
+		// Cinema routes
+		cinema := api.Group("/cinema")
 		{
-			auth.POST("/register", handlers.Register)
-			auth.POST("/login", handlers.Login)
+			// Movies
+			cinema.GET("/movies", handlers.GetMovies)
+			cinema.GET("/movies/:id", handlers.GetMovie)
+			cinema.POST("/movies", handlers.CreateMovie)
+			cinema.PUT("/movies/:id", handlers.UpdateMovie)
+			cinema.GET("/movies/:id/shows", handlers.GetShowsByMovie)
+
+			// Shows and Seats
+			cinema.GET("/shows/:id/seats", handlers.GetAvailableSeats)
+
+			// Bookings
+			bookings := cinema.Group("/bookings")
+			{
+				bookings.POST("", handlers.CreateBooking)
+				bookings.GET("", handlers.GetBookings)
+				bookings.DELETE("/:id", handlers.CancelBooking)
+			}
 		}
 	}
 
