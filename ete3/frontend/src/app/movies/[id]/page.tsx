@@ -64,40 +64,13 @@ export default function MovieDetails({ params }: { params: { id: string } }) {
         try {
           setLoading(true);
           
-          // First get real seats from the API
-          let seatsData = await getShowSeats(selectedShow.id);
+          // Get seats from the API - these are the only available seats
+          const seatsData = await getShowSeats(selectedShow.id);
           
-          // For testing purposes: Create a sample data set if the API returns no seats
-          // Remove this in production when the API is providing real data
-          if (seatsData.length === 0) {
-            // Create a complete set of seats from A1-A20 to G1-G20
-            const mockSeats: Seat[] = [];
-            let seatId = 1;
-            
-            for (let row = 1; row <= 7; row++) {
-              for (let seatNum = 1; seatNum <= 20; seatNum++) {
-                // All seats are available (no random availability check)
-                mockSeats.push({
-                  id: seatId++,
-                  theater_id: selectedShow.theater_id,
-                  row_number: row,
-                  seat_number: seatNum,
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                });
-              }
-            }
-            
-            seatsData = mockSeats;
-          }
-          
-          // Randomly mark some seats as booked
-          const randomBookedSeats = seatsData
-            .filter((seat: Seat) => Math.random() > 0.7)
-            .map((seat: Seat) => seat.id);
-          
+          // If API returns no seats, we'll just use an empty array
+          // This will make all seats appear unavailable in the seat selection component
           setSeats(seatsData);
-          setBookedSeatIds(randomBookedSeats);
+          setBookedSeatIds([]);
         } catch (err) {
           console.error(err);
           setError('Failed to load seats. Please try again later.');

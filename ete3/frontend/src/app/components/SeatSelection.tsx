@@ -17,25 +17,9 @@ const SeatSelection = ({ seats, bookedSeatIds = [] }: SeatSelectionProps) => {
     seatsByPosition.set(key, seat);
   });
 
-  // Find min/max row numbers from the available seats
-  const rowNumbers = seats.map(seat => seat.row_number);
-  const minRow = Math.min(...rowNumbers);
-  const maxRow = Math.max(...rowNumbers);
-  
-  // Find min/max seat numbers for each row
-  const seatRangesByRow = new Map();
-  seats.forEach(seat => {
-    if (!seatRangesByRow.has(seat.row_number)) {
-      seatRangesByRow.set(seat.row_number, { min: seat.seat_number, max: seat.seat_number });
-    } else {
-      const range = seatRangesByRow.get(seat.row_number);
-      if (seat.seat_number < range.min) range.min = seat.seat_number;
-      if (seat.seat_number > range.max) range.max = seat.seat_number;
-    }
-  });
-  
-  // Create arrays for rows and columns
-  const rows = Array.from({ length: maxRow - minRow + 1 }, (_, i) => minRow + i);
+  // Create grid of rows (A-G) and columns (1-20)
+  const rows = [1, 2, 3, 4, 5, 6, 7]; // A through G
+  const columns = Array.from({ length: 20 }, (_, i) => i + 1); // 1-20
   
   const isSeatSelected = (seatId: number) => {
     return selectedSeats.some(seat => seat.id === seatId);
@@ -45,26 +29,33 @@ const SeatSelection = ({ seats, bookedSeatIds = [] }: SeatSelectionProps) => {
     return bookedSeatIds.includes(seatId);
   };
   
+  const isSeatAvailable = (row: number, column: number) => {
+    const key = `${row}-${column}`;
+    return seatsByPosition.has(key);
+  };
+  
   const handleSeatClick = (seat: Seat) => {
     if (isSeatBooked(seat.id)) return;
     toggleSeatSelection(seat);
   };
   
   return (
-    <div className="my-8">
+    <div className="my-8 bg-black text-white p-6 rounded-lg">
+      <h2 className="text-2xl font-bold mb-6">Select Your Seats</h2>
+      
       <div className="flex justify-center mb-6">
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-8">
           <div className="flex items-center">
-            <div className="w-6 h-6 bg-gray-200 border border-gray-300 rounded mr-2"></div>
+            <div className="w-6 h-6 bg-gray-600 rounded mr-2"></div>
             <span className="text-sm">Available</span>
           </div>
           <div className="flex items-center">
-            <div className="w-6 h-6 bg-red-500 rounded mr-2"></div>
+            <div className="w-6 h-6 bg-red-600 rounded mr-2"></div>
             <span className="text-sm">Selected</span>
           </div>
           <div className="flex items-center">
-            <div className="w-6 h-6 bg-gray-500 rounded mr-2"></div>
-            <span className="text-sm">Booked</span>
+            <div className="w-6 h-6 bg-gray-800 rounded mr-2"></div>
+            <span className="text-sm">Booked/Unavailable</span>
           </div>
         </div>
       </div>
@@ -72,45 +63,51 @@ const SeatSelection = ({ seats, bookedSeatIds = [] }: SeatSelectionProps) => {
       <div className="w-full overflow-x-auto">
         <div className="flex flex-col items-center">
           {/* Screen */}
-          <div className="w-4/5 h-10 bg-gray-300 rounded-t-lg mb-10 flex items-center justify-center text-gray-700">
+          <div className="w-full max-w-4xl h-12 bg-gray-600 mb-10 flex items-center justify-center text-white font-medium">
             SCREEN
           </div>
           
           {/* Seats */}
-          <div className="mb-8">
+          <div className="mb-8 max-w-4xl w-full">
             {rows.map(row => {
               const rowLabel = String.fromCharCode(64 + row); // A, B, C, etc.
-              const range = seatRangesByRow.get(row) || { min: 1, max: 20 };
-              const columns = Array.from(
-                { length: range.max - range.min + 1 }, 
-                (_, i) => range.min + i
-              );
               
               return (
-                <div key={row} className="flex justify-center mb-2">
-                  <div className="flex-shrink-0 w-8 flex items-center justify-center font-bold">
+                <div key={row} className="flex items-center mb-2">
+                  <div className="w-8 flex items-center justify-center font-bold text-lg">
                     {rowLabel}
                   </div>
-                  <div className="flex gap-1 flex-wrap">
+                  <div className="flex-1 grid grid-cols-20 gap-1">
                     {columns.map(column => {
                       const key = `${row}-${column}`;
                       const seat = seatsByPosition.get(key);
+                      const isAvailable = isSeatAvailable(row, column);
                       
-                      // Skip rendering if seat doesn't exist from API
-                      if (!seat) return null;
+                      // Create a temporary seat object for unavailable seats
+                      const seatObj = seat || {
+                        id: (row * 100) + column,
+                        row_number: row,
+                        seat_number: column,
+                        theater_id: 1,
+                        created_at: '',
+                        updated_at: ''
+                      };
                       
-                      const isSelected = isSeatSelected(seat.id);
-                      const isBooked = isSeatBooked(seat.id);
+                      const isSelected = selectedSeats.some(s => 
+                        s.row_number === row && s.seat_number === column
+                      );
+                      const isBooked = bookedSeatIds.includes(seatObj.id);
                       
                       return (
                         <button
                           key={key}
-                          onClick={() => handleSeatClick(seat)}
-                          disabled={isBooked}
-                          className={`w-7 h-7 rounded-t flex items-center justify-center text-xs 
-                            ${isSelected ? 'bg-red-500 text-white' : ''}
-                            ${isBooked ? 'bg-gray-500 text-white cursor-not-allowed' : ''}
-                            ${!isSelected && !isBooked ? 'bg-gray-200 hover:bg-gray-300' : ''}
+                          onClick={() => isAvailable ? handleSeatClick(seatObj) : null}
+                          disabled={!isAvailable || isBooked}
+                          className={`w-full h-8 rounded-sm flex items-center justify-center text-xs 
+                            ${isSelected ? 'bg-red-600 text-white' : ''}
+                            ${isBooked ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : ''}
+                            ${!isAvailable ? 'bg-gray-800 text-gray-600 cursor-not-allowed' : ''}
+                            ${!isSelected && !isBooked && isAvailable ? 'bg-gray-600 hover:bg-gray-500' : ''}
                           `}
                         >
                           {column}
@@ -125,16 +122,18 @@ const SeatSelection = ({ seats, bookedSeatIds = [] }: SeatSelectionProps) => {
         </div>
       </div>
       
-      <div className="mt-6 p-4 bg-gray-100 rounded">
-        <p className="font-bold mb-2">Selected Seats: {selectedSeats.length}</p>
-        <div className="flex flex-wrap gap-2">
-          {selectedSeats.map((seat) => (
-            <span key={seat.id} className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
-              {String.fromCharCode(64 + seat.row_number)}{seat.seat_number}
-            </span>
-          ))}
+      {selectedSeats.length > 0 && (
+        <div className="mt-6 p-4 bg-gray-800 rounded">
+          <p className="font-bold mb-2">Selected Seats: {selectedSeats.length}</p>
+          <div className="flex flex-wrap gap-2">
+            {selectedSeats.map((seat) => (
+              <span key={`${seat.row_number}-${seat.seat_number}`} className="px-2 py-1 bg-red-900 text-white rounded-full text-sm">
+                {String.fromCharCode(64 + seat.row_number)}{seat.seat_number}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
