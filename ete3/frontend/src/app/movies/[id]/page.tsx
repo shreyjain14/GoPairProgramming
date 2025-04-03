@@ -33,8 +33,6 @@ export default function MovieDetails({ params }: { params: { id: string } }) {
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const movieId = parseInt(params.id);
-
   useEffect(() => {
     // Reset booking state when component mounts
     resetBooking();
@@ -42,6 +40,7 @@ export default function MovieDetails({ params }: { params: { id: string } }) {
     const fetchMovieData = async () => {
       try {
         setLoading(true);
+        const movieId = parseInt(params.id);
         const movieData = await getMovie(movieId);
         setMovie(movieData);
         setSelectedMovie(movieData);
@@ -57,20 +56,45 @@ export default function MovieDetails({ params }: { params: { id: string } }) {
     };
 
     fetchMovieData();
-  }, [movieId, resetBooking, setSelectedMovie]);
+  }, [params.id, resetBooking, setSelectedMovie]);
 
   useEffect(() => {
     if (selectedShow) {
       const fetchSeats = async () => {
         try {
           setLoading(true);
-          const seatsData = await getShowSeats(selectedShow.id);
           
-          // In a real app, we'd get booked seats from the API
-          // For now, let's simulate some random booked seats
+          // First get real seats from the API
+          let seatsData = await getShowSeats(selectedShow.id);
+          
+          // For testing purposes: Create a sample data set if the API returns no seats
+          // Remove this in production when the API is providing real data
+          if (seatsData.length === 0) {
+            // Create a complete set of seats from A1-A20 to G1-G20
+            const mockSeats: Seat[] = [];
+            let seatId = 1;
+            
+            for (let row = 1; row <= 7; row++) {
+              for (let seatNum = 1; seatNum <= 20; seatNum++) {
+                // All seats are available (no random availability check)
+                mockSeats.push({
+                  id: seatId++,
+                  theater_id: selectedShow.theater_id,
+                  row_number: row,
+                  seat_number: seatNum,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                });
+              }
+            }
+            
+            seatsData = mockSeats;
+          }
+          
+          // Randomly mark some seats as booked
           const randomBookedSeats = seatsData
-            .filter(() => Math.random() > 0.7)
-            .map(seat => seat.id);
+            .filter((seat: Seat) => Math.random() > 0.7)
+            .map((seat: Seat) => seat.id);
           
           setSeats(seatsData);
           setBookedSeatIds(randomBookedSeats);

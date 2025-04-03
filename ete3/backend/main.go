@@ -51,6 +51,7 @@ func main() {
 
 			// Shows and Seats
 			cinema.GET("/shows/:id/seats", handlers.GetAvailableSeats)
+			cinema.GET("/shows/:id/layout", handlers.GetTheaterLayout)
 
 			// Bookings
 			bookings := cinema.Group("/bookings")

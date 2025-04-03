@@ -10,28 +10,35 @@ interface SeatSelectionProps {
 const SeatSelection = ({ seats, bookedSeatIds = [] }: SeatSelectionProps) => {
   const { selectedSeats, toggleSeatSelection } = useBookingStore();
   
-  // Group seats by row for better display
-  const seatsByRow = seats.reduce((acc, seat) => {
-    const row = seat.row_number;
-    if (!acc[row]) {
-      acc[row] = [];
-    }
-    acc[row].push(seat);
-    return acc;
-  }, {} as Record<number, Seat[]>);
+  // Create a map of all available seats from the API
+  const seatsByPosition = new Map();
+  seats.forEach(seat => {
+    const key = `${seat.row_number}-${seat.seat_number}`;
+    seatsByPosition.set(key, seat);
+  });
+
+  // Find min/max row numbers from the available seats
+  const rowNumbers = seats.map(seat => seat.row_number);
+  const minRow = Math.min(...rowNumbers);
+  const maxRow = Math.max(...rowNumbers);
   
-  // Sort seats in each row by seat number
-  Object.keys(seatsByRow).forEach((row) => {
-    seatsByRow[Number(row)].sort((a, b) => a.seat_number - b.seat_number);
+  // Find min/max seat numbers for each row
+  const seatRangesByRow = new Map();
+  seats.forEach(seat => {
+    if (!seatRangesByRow.has(seat.row_number)) {
+      seatRangesByRow.set(seat.row_number, { min: seat.seat_number, max: seat.seat_number });
+    } else {
+      const range = seatRangesByRow.get(seat.row_number);
+      if (seat.seat_number < range.min) range.min = seat.seat_number;
+      if (seat.seat_number > range.max) range.max = seat.seat_number;
+    }
   });
   
-  // Get sorted row numbers
-  const rows = Object.keys(seatsByRow)
-    .map(Number)
-    .sort((a, b) => a - b);
+  // Create arrays for rows and columns
+  const rows = Array.from({ length: maxRow - minRow + 1 }, (_, i) => minRow + i);
   
   const isSeatSelected = (seatId: number) => {
-    return selectedSeats.some((seat) => seat.id === seatId);
+    return selectedSeats.some(seat => seat.id === seatId);
   };
   
   const isSeatBooked = (seatId: number) => {
@@ -71,34 +78,49 @@ const SeatSelection = ({ seats, bookedSeatIds = [] }: SeatSelectionProps) => {
           
           {/* Seats */}
           <div className="mb-8">
-            {rows.map((row) => (
-              <div key={row} className="flex justify-center mb-2">
-                <div className="flex-shrink-0 w-8 flex items-center justify-center font-bold">
-                  {String.fromCharCode(64 + row)}
+            {rows.map(row => {
+              const rowLabel = String.fromCharCode(64 + row); // A, B, C, etc.
+              const range = seatRangesByRow.get(row) || { min: 1, max: 20 };
+              const columns = Array.from(
+                { length: range.max - range.min + 1 }, 
+                (_, i) => range.min + i
+              );
+              
+              return (
+                <div key={row} className="flex justify-center mb-2">
+                  <div className="flex-shrink-0 w-8 flex items-center justify-center font-bold">
+                    {rowLabel}
+                  </div>
+                  <div className="flex gap-1 flex-wrap">
+                    {columns.map(column => {
+                      const key = `${row}-${column}`;
+                      const seat = seatsByPosition.get(key);
+                      
+                      // Skip rendering if seat doesn't exist from API
+                      if (!seat) return null;
+                      
+                      const isSelected = isSeatSelected(seat.id);
+                      const isBooked = isSeatBooked(seat.id);
+                      
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => handleSeatClick(seat)}
+                          disabled={isBooked}
+                          className={`w-7 h-7 rounded-t flex items-center justify-center text-xs 
+                            ${isSelected ? 'bg-red-500 text-white' : ''}
+                            ${isBooked ? 'bg-gray-500 text-white cursor-not-allowed' : ''}
+                            ${!isSelected && !isBooked ? 'bg-gray-200 hover:bg-gray-300' : ''}
+                          `}
+                        >
+                          {column}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {seatsByRow[row].map((seat) => {
-                    const isSelected = isSeatSelected(seat.id);
-                    const isBooked = isSeatBooked(seat.id);
-                    
-                    return (
-                      <button
-                        key={seat.id}
-                        onClick={() => handleSeatClick(seat)}
-                        disabled={isBooked}
-                        className={`w-8 h-8 rounded-t flex items-center justify-center text-xs 
-                          ${isSelected ? 'bg-red-500 text-white' : ''}
-                          ${isBooked ? 'bg-gray-500 text-white cursor-not-allowed' : ''}
-                          ${!isSelected && !isBooked ? 'bg-gray-200 hover:bg-gray-300' : ''}
-                        `}
-                      >
-                        {seat.seat_number}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

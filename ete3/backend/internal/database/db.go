@@ -405,6 +405,88 @@ func GetMovieByID(movieID int64) (*models.Movie, error) {
 	return movie, nil
 }
 
+// GetShowByID retrieves a show by its ID
+func GetShowByID(showID int64) (*models.Show, error) {
+	show := &models.Show{}
+	err := DB.QueryRow(`
+		SELECT id, movie_id, theater_id, start_time, end_time, price, created_at, updated_at
+		FROM shows
+		WHERE id = ?`, showID).Scan(
+		&show.ID, &show.MovieID, &show.TheaterID, &show.StartTime, &show.EndTime,
+		&show.Price, &show.CreatedAt, &show.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return show, nil
+}
+
+// GetTheaterByID retrieves a theater by its ID
+func GetTheaterByID(theaterID int64) (*models.Theater, error) {
+	theater := &models.Theater{}
+	err := DB.QueryRow(`
+		SELECT id, name, capacity, created_at, updated_at
+		FROM theaters
+		WHERE id = ?`, theaterID).Scan(
+		&theater.ID, &theater.Name, &theater.Capacity, &theater.CreatedAt, &theater.UpdatedAt)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return theater, nil
+}
+
+// GetAllSeatsForTheater retrieves all seats for a specific theater
+func GetAllSeatsForTheater(theaterID int64) ([]models.Seat, error) {
+	rows, err := DB.Query(`
+		SELECT id, theater_id, row_number, seat_number, created_at, updated_at
+		FROM seats
+		WHERE theater_id = ?
+		ORDER BY row_number, seat_number`, theaterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var seats []models.Seat
+	for rows.Next() {
+		var s models.Seat
+		err := rows.Scan(&s.ID, &s.TheaterID, &s.RowNumber, &s.SeatNumber, &s.CreatedAt, &s.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		seats = append(seats, s)
+	}
+	return seats, nil
+}
+
+// GetBookedSeatsForShow retrieves all booked seats for a specific show
+func GetBookedSeatsForShow(showID int64) ([]models.Seat, error) {
+	rows, err := DB.Query(`
+		SELECT s.id, s.theater_id, s.row_number, s.seat_number, s.created_at, s.updated_at
+		FROM seats s
+		INNER JOIN bookings b ON s.id = b.seat_id
+		WHERE b.show_id = ? AND b.status = 'confirmed'
+		ORDER BY s.row_number, s.seat_number`, showID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var seats []models.Seat
+	for rows.Next() {
+		var s models.Seat
+		err := rows.Scan(&s.ID, &s.TheaterID, &s.RowNumber, &s.SeatNumber, &s.CreatedAt, &s.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		seats = append(seats, s)
+	}
+	return seats, nil
+}
+
 // User operations
 func CreateUser(req *models.RegisterRequest) error {
 	// Hash the password
