@@ -31,15 +31,6 @@ const Header = () => {
                   <span>My Bookings</span>
                 </Link>
               </li>
-              <li>
-                <Link 
-                  href="/admin" 
-                  className="flex items-center gap-1 hover:text-red-400 transition"
-                >
-                  <FaUser />
-                  <span>Admin</span>
-                </Link>
-              </li>
             </ul>
           </nav>
         </div>
