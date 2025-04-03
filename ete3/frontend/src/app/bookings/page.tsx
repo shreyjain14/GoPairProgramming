@@ -124,14 +124,16 @@ export default function BookingsPage() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => handleCancelBooking(booking.id)}
-                  disabled={cancellingId === booking.id}
-                  className="flex items-center text-red-600 hover:text-red-800 transition-colors"
-                >
-                  <FaTrash className="mr-1" />
-                  {cancellingId === booking.id ? 'Cancelling...' : 'Cancel Booking'}
-                </button>
+                {booking.status !== 'cancelled' && (
+                  <button
+                    onClick={() => handleCancelBooking(booking.id)}
+                    disabled={cancellingId === booking.id}
+                    className="flex items-center text-red-600 hover:text-red-800 transition-colors"
+                  >
+                    <FaTrash className="mr-1" />
+                    {cancellingId === booking.id ? 'Cancelling...' : 'Cancel Booking'}
+                  </button>
+                )}
               </div>
             </div>
           ))}

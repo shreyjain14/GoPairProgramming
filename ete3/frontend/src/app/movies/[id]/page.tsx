@@ -97,6 +97,12 @@ export default function MovieDetails({ params }: { params: { id: string } }) {
       };
 
       const result = await createBooking(bookingData);
+      
+      if (result.status === "failed") {
+        setBookingError(result.message);
+        return;
+      }
+      
       setBookingResult(result);
 
       // Navigate to booking confirmation after success
